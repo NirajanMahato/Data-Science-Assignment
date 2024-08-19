@@ -1,4 +1,3 @@
-#1	House prices vs Download Speed
 library(tidyverse)
 library(readr)
 library(dplyr)
@@ -6,8 +5,7 @@ library(ggplot2)
 library(lubridate)
 
 
-
-
+#1	House prices vs Download Speed
 cleaned_housing = read_csv("D:/Sem4/Data Science/Data-Science-Assignment/Cleaned Data/House Pricing/house_selling_clean.csv")
 cleaned_broadband = read_csv("D:/Sem4/Data Science/Data-Science-Assignment/Cleaned Data/Broadband Speed/cleaned_data_broadband.csv")
 
