@@ -1,160 +1,115 @@
-# Load necessary libraries
-library(tidyverse)
+# Cleaning of school
 library(dplyr)
-library(stringi)
-library(scales)
-library(data.table)
+library(readr)
+library(tidyverse)
 library(ggplot2)
 
-# Read and clean Bristol datasets
-Bristol <-  read.csv("D:/Sem4/Data Science/Obtained Data/school/bristol/2021-2022/801_ks4final.csv", fill = TRUE)
 
-# Read and clean Cornwall datasets
-Cornwall <- read.csv("D:/Sem4/Data Science/Obtained Data/school/cornwall/2021-2022/908_ks4final.csv", fill = TRUE) 
-
-
-# Bristol School Data for 2021-2022
-# Selecting relevant columns and filtering out invalid data, adding Year and County columns
-bristol_ks4_final_2021_22 <- Bristol %>%
-  select(PCODE, SCHNAME, TOWN, URN, TOTATT8, ATT8SCR) %>%
-  mutate(Year = "2021-2022") %>%
-  mutate(County = "Bristol") %>%
-  na.omit() %>% # Remove rows with missing values
-  filter(!(TOTATT8 == "NE" | ATT8SCR == "NE" | TOTATT8 == "SUPP" | ATT8SCR == "SUPP")) # Exclude invalid entries
-
-# Renaming columns to more descriptive names
-colnames(bristol_ks4_final_2021_22) <- c(
-  "Postcode", "SchoolName", "Town", "UniqueRefNo", 
-  "Total_Attainment_8_Score", "Attainment_8_Score", "Year", "County"
-)
+bristol21=read_csv("D:/Sem4/Data Science/Obtained Data/school/bristol/2021-2022/801_ks4final.csv")
+bristol22=read_csv("D:/Sem4/Data Science/Obtained Data/school/bristol/2022-2023/801_ks4final.csv")
+cornwall21=read_csv("D:/Sem4/Data Science/Obtained Data/school/cornwall/2021-2022/908_ks4final.csv")
+cornwall22=read_csv("D:/Sem4/Data Science/Obtained Data/school/cornwall/2022-2023/908_ks4final.csv")
 
 
+# cleaning
+clean_data = function(df) {
+  df %>%
+    select(SCHNAME, PCODE, ATT8SCR, TOWN) %>% 
+    mutate(ATT8SCR = as.numeric(ATT8SCR)) %>%  
+    filter(!is.na(ATT8SCR)) %>%  
+    filter(!is.na(ATT8SCR) & !is.na(PCODE) & !is.na(SCHNAME) & !is.na(TOWN))  %>%
+    distinct()
+  
+  
+}
 
-# Cornwall School Data for 2021-2022
-# Performing similar operations as above
-cornwall_ks4_final_2021_22 <- Cornwall %>%
-  select(PCODE, SCHNAME, TOWN, URN, TOTATT8, ATT8SCR) %>%
-  mutate(Year = "2021-2022") %>%
-  mutate(County = "Cornwall") %>%
-  na.omit() %>%
-  filter(!(TOTATT8 == "NE" | ATT8SCR == "NE" | TOTATT8 == "SUPP" | ATT8SCR == "SUPP"))
+# Cleaning all datasets
+bristol21_clean = clean_data(bristol21)
+bristol22_clean = clean_data(bristol22)
+cornwall21_clean = clean_data(cornwall21)
+cornwall22_clean = clean_data(cornwall22)
 
-# Renaming columns for consistency
-colnames(cornwall_ks4_final_2021_22) <- c(
-  "Postcode", "SchoolName", "Town", "UniqueRefNo", 
-  "Total_Attainment_8_Score", "Attainment_8_Score", "Year", "County"
-)
+# Adding academic year and county identifiers
+bristol21_clean = bristol21_clean %>% mutate(Academic_Year = "2021-2022", County = "Bristol")
+bristol22_clean = bristol22_clean %>% mutate(Academic_Year = "2022-2023", County = "Bristol")
+cornwall21_clean = cornwall21_clean %>% mutate(Academic_Year = "2021-2022", County = "Cornwall")
+cornwall22_clean = cornwall22_clean %>% mutate(Academic_Year = "2022-2023", County = "Cornwall")
 
+# Merging
+combined_schooldata = bind_rows(bristol21_clean, bristol22_clean, cornwall21_clean, cornwall22_clean)
 
+View( combined_schooldata)
 
-# Combining all datasets into one
-combined_ks4_final <- bind_rows(
-  bristol_ks4_final_2021_22, cornwall_ks4_final_2021_22
-)
-
-# Display the combined dataset
-View(combined_ks4_final)
-
-# Export the combined dataset to a CSV file
-write.csv(combined_ks4_final, "D:/Sem4/Data Science/Data-Science-Assignment/Cleaned Data/School/cleaned_school.csv", row.names=FALSE)
+write_csv(combined_schooldata, "D:/Sem4/Data Science/Data-Science-Assignment/Cleaned Data/School/cleanedschool.csv")
 
 
 
+#Visualization of school
+cleaned_schooldata = read_csv("D:/Sem4/Data Science/Data-Science-Assignment/Cleaned Data/School/cleanedschool.csv")
+
+# Filtering
+data_2021_2022 = cleaned_schooldata %>% 
+  filter(Academic_Year == "2021-2022")
+
+# Calculating
+average_att8scr = data_2021_2022 %>%
+  group_by(County) %>%
+  summarize(Average_ATT8SCR = mean(ATT8SCR, na.rm = TRUE))
 
 
-# Filter data for Bristol
-bristol_data <- combined_ks4_final %>%
-  filter(County == "Bristol")
+print(average_att8scr)
 
-# Create a boxplot for Bristol towns
-boxplot_bristol <- ggplot(bristol_data, aes(x = Town, y = Attainment_8_Score, fill = Town)) +
+# Creating a boxplot 
+ggplot(data_2021_2022, aes(x = County, y = ATT8SCR, fill = County)) +
   geom_boxplot() +
-  labs(
-    title = "Attainment 8 Score by Town in Bristol (2021-2022)",
-    x = "Town",
-    y = "Attainment 8 Score"
-  ) +
-  theme_minimal() +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1))  # Rotate x-axis labels for better readability
-
-# Display the boxplot for Bristol towns
-print(boxplot_bristol)
-
-# Filter data for Cornwall
-cornwall_data <- combined_ks4_final %>%
-  filter(County == "Cornwall")
-
-# Create a boxplot for Cornwall towns
-boxplot_cornwall <- ggplot(cornwall_data, aes(x = Town, y = Attainment_8_Score, fill = Town)) +
-  geom_boxplot() +
-  labs(
-    title = "Attainment 8 Score by Town in Cornwall (2021-2022)",
-    x = "Town",
-    y = "Attainment 8 Score"
-  ) +
-  theme_minimal() +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1))  # Rotate x-axis labels for better readability
-
-# Display the boxplot for Cornwall towns
-print(boxplot_cornwall)
-
-
-# Filter data for Bristol
-bristol_data <- combined_ks4_final %>%
-  filter(County == "Bristol")
-
-# Calculate the average Attainment 8 score for each school
-average_attainment8_bristol <- bristol_data %>%
-  group_by(SchoolName) %>%
-  summarise(Avg_Attainment_8_Score = mean(Attainment_8_Score, na.rm = TRUE)) %>%
-  na.omit()  # Remove any rows with NA values
-
-# Ensure that the Attainment 8 scores are numeric
-average_attainment8_bristol$Avg_Attainment_8_Score <- as.numeric(average_attainment8_bristol$Avg_Attainment_8_Score)
-
-# Create a line chart for average Attainment 8 score in Bristol schools
-line_chart_bristol <- ggplot(average_attainment8_bristol, aes(x = SchoolName, y = Avg_Attainment_8_Score, group = 1)) +
-  geom_line() +
-  geom_point() +
-  labs(title = "Average Attainment 8 Score in Bristol Schools (2021-2022)", 
-       x = "School", y = "Attainment 8 Score") +
-  theme_minimal() +
-  theme(axis.text.x = element_text(angle = 90, hjust = 1))
-
-# Display the line chart for Bristol schools
-print(line_chart_bristol)
-
-
-colnames(combined_ks4_final)
-
-# Filter the data for the academic year 2021-2022 and for Bristol schools only
-bristol_schooldata_2021_2022 <- combined_ks4_final %>%
-  filter(County == "Bristol")
-
-# Generate the line chart for Attainment 8 score for each Bristol school
-ggplot(bristol_schooldata_2021_2022, aes(x = SchoolName, y = Attainment_8_Score, group = SchoolName)) +
-  geom_line(aes(color = SchoolName)) +
-  geom_point() +
-  labs(title = "Bristol Schools' Average Attainment 8 Score (2021-2022 Academic Year)",
-       x = "School Name", 
+  labs(title = "Boxplot of Attainment 8 Scores (2021-2022)",
+       x = "County",
        y = "Attainment 8 Score") +
+  theme_minimal()
+
+
+# Filtering
+bristol_2021_2022 = cleaned_schooldata %>% 
+  filter(County == "Bristol" & Academic_Year == "2021-2022")
+
+# Calculating
+bristol_avg_att8scr = bristol_2021_2022 %>%
+  group_by(SCHNAME) %>%
+  summarize(Average_ATT8SCR = mean(ATT8SCR, na.rm = TRUE))
+
+
+print(bristol_avg_att8scr)
+
+# Create a line chart for Bristol schools' average Attainment 8 scores
+ggplot(bristol_avg_att8scr, aes(x = SCHNAME, y = Average_ATT8SCR, group = 1)) +
+  geom_line(color = "blue") +
+  geom_point(color = "red") +
+  labs(title = "Average Attainment 8 Score for Bristol Schools (2021-2022)",
+       x = "School Name",
+       y = "Average Attainment 8 Score") +
   theme_minimal() +
-  theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
-  scale_color_discrete(name = "School Name")
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))  # Rotate school names for better readability
 
 
-# Filter the data for the academic year 2021-2022 and for Cornwall schools only
-bristol_schooldata_2021_2022 <- combined_ks4_final %>%
-  filter(County == "Cornwall")
+# Filtering
+cornwall_2021_2022 = cleaned_schooldata %>% 
+  filter(County == "Cornwall" & Academic_Year == "2021-2022")
 
-# Generate the line chart for Attainment 8 score for each Bristol school
-ggplot(bristol_schooldata_2021_2022, aes(x = SchoolName, y = Attainment_8_Score, group = SchoolName)) +
-  geom_line(aes(color = SchoolName)) +
-  geom_point() +
-  labs(title = "Cornwall Schools' Average Attainment 8 Score (2021-2022 Academic Year)",
-       x = "School Name", 
-       y = "Attainment 8 Score") +
+# Calculating 
+cornwall_avg_att8scr = cornwall_2021_2022 %>%
+  group_by(SCHNAME) %>%
+  summarize(Average_ATT8SCR = mean(ATT8SCR, na.rm = TRUE))
+
+
+print(cornwall_avg_att8scr)
+
+# Creating a line chart 
+ggplot(cornwall_avg_att8scr, aes(x = SCHNAME, y = Average_ATT8SCR, group = 1)) +
+  geom_line(color = "blue") +
+  geom_point(color = "red") +
+  labs(title = "Average Attainment 8 Score for Cornwall Schools (2021-2022)",
+       x = "School Name",
+       y = "Average Attainment 8 Score") +
   theme_minimal() +
-  theme(axis.text.x = element_text(angle = 90, hjust = 1))
-
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
 

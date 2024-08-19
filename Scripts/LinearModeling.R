@@ -1,4 +1,4 @@
-#•	House prices vs Download Speed
+#1	House prices vs Download Speed
 library(tidyverse)
 library(readr)
 library(dplyr)
@@ -40,11 +40,7 @@ ggplot(merged_data, aes(x = Price, y = AvgDownloadSpeed)) +
 
 
 
-#•	House price vs Drug Rate (2023)
-
-library(tidyverse)
-library(ggplot2)
-
+#2	House price vs Drug Rate (2023)
 
 housing_data = read_csv("D:/Sem4/Data Science/Data-Science-Assignment/Cleaned Data/House Pricing/house_selling_clean.csv")
 crime_data = read_csv("D:/Sem4/Data Science/Data-Science-Assignment/Cleaned Data/Crime/Cleaned_merged_crimedata.csv")
