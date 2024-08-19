@@ -1,109 +1,190 @@
+# Load necessary libraries
 library(tidyverse)
 library(dplyr)
 library(ggplot2)
-library(readr)
 
-colm_names = c('Category', 'Price', 'Date', 'PostCode', 'null1','null2','null3','POAN','SOAN','Street','Locality','Town','District','County','null4','null5')
+# Read housing data from CSV files for each year
+housing_2020 = read_csv("D:/Sem4/Data Science/Obtained Data/Housing/pp-2020.csv")
+housing_2021 = read_csv("D:/Sem4/Data Science/Obtained Data/Housing/pp-2021.csv")
+housing_2022 = read_csv("D:/Sem4/Data Science/Obtained Data/Housing/pp-2022.csv")
+housing_2023 = read_csv("D:/Sem4/Data Science/Obtained Data/Housing/pp-2023.csv")
 
-housing20 = read.csv("D:/Sem4/Data Science/Obtained Data/Housing/pp-2020.csv", col.names = colm_names )
-housing21 = read.csv("D:/Sem4/Data Science/Obtained Data/Housing/pp-2021.csv", col.names = colm_names)
-housing22 = read.csv("D:/Sem4/Data Science/Obtained Data/Housing/pp-2022.csv", col.names = colm_names)
-housing23 = read.csv("D:/Sem4/Data Science/Obtained Data/Housing/pp-2023.csv", col.names = colm_names)
-
-#View(housing20)
-#View(housing21)
-#View(housing22)
-#View(housing23)
-
-
-# Merge the datasets
-merged_housing = bind_rows(housing20, housing21, housing22, housing23)
-
-# View the merged dataset
-View(merged_housing)
-
-# Optionally, you can write the merged dataset to a new CSV file
-#write.csv(merged_housing, "D:/Sem4/Data Science/Data-Science-Assignment/Cleaned Data/House Pricing/mergehouse.csv", row.names = FALSE)
-
-# Remove the specified columns
-columns_to_remove = c('null1', 'null2', 'null3', 'null4', 'null5', 'Category','SOAN')
-final_data = merged_housing %>% select(-one_of(columns_to_remove))
-
-
-# View the updated dataset
-#View(final_data)
-
-write.csv(final_data, "D:/Sem4/Data Science/Data-Science-Assignment/Cleaned Data/House Pricing/mergehouse.csv", row.names = FALSE)
-
-# Keep data that contains county Bristol and Cornwall using grepl
-filtered_data = final_data %>%
-  filter(grepl("Bristol|Cornwall", County, ignore.case = TRUE))
-
-
-View(filtered_data)
-
-write.csv(filtered_data, "D:/Sem4/Data Science/Data-Science-Assignment/Cleaned Data/House Pricing/filter.csv", row.names = FALSE)
-
-# Remove rows with too many missing values
-# Set threshold for maximum allowable NA values in a row (e.g., 50% missing)
-threshold = ncol(filtered_data) / 2
-filtered_data = filtered_data[rowSums(is.na(filtered_data)) <= threshold, ]
-
-# Remove columns with too many missing values
-# Set threshold for maximum allowable NA values in a column (e.g., 50% missing)
-threshold_col = nrow(filtered_data) / 2
-filtered_data = filtered_data %>% select_if(~sum(is.na(.)) <= threshold_col)
-
-# Impute remaining missing values
-# Example: Replace missing values in numeric columns with median
-filtered_data = filtered_data %>% mutate_if(is.numeric, ~ifelse(is.na(.), median(., na.rm = TRUE), .))
-
-
-# Remove duplicates
-filtered_data = filtered_data %>% distinct()
-
-
-# Remove the time component from the Date column
-filtered_data = filtered_data %>% mutate(Date = as.Date(Date))
-
-str(filtered_data)
-
-
-average_price <- mean(filtered_data$Price, na.rm = TRUE)
-
-
-# Define the path where you want to save the combined file
-output_file_path = 'D:/Sem4/Data Science/Data-Science-Assignment/Cleaned Data/House Pricing/finalHousing_file.csv'
-
-
-# Save the final dataframe to a new CSV file
-write.csv(filtered_data, output_file_path, row.names = FALSE)
-
-View(filtered_data)
-
-
-
-
-cat("Lowest Prices")
-print(filtered_data %>%
-        group_by(Town) %>%
-        summarise(Avg_Price=mean(Price, na.rm=TRUE))%>%
-        arrange(Avg_Price)%>%
-        head(10)
+# Rename columns to have consistent column names across all data frames
+colnames(housing_2020) = colnames(housing_2021) = colnames(housing_2022) = colnames(housing_2023) =  c(
+  "ID", "Price", "SaleDate", "Postcode", "Property_Type", "Old_New", "Durations", "PAON", "SOAN", "Street_Name", 
+  "Locality", "Town/City", "District", "County", "Category_PPD", "ActiveStatus"
 )
 
-View(filtered_data)
+# Combine all the yearly data frames into one data frame using pipelines
+house_selling_clean = bind_rows(housing_2020, housing_2021, housing_2022, housing_2023) %>%
+  # Subset to keep only the desired columns
+  select(ID, Postcode, Price, SaleDate, `Town/City`, County) %>%
+  # Remove rows with any missing values
+  na.omit() %>% 
+  # Remove duplicate rows
+  distinct() %>%
+  # Filter the data for specific counties
+  filter(County == 'CITY OF BRISTOL' | County == 'CORNWALL') %>%
+  # Convert SaleDate to Date format and extract the year
+  mutate(SaleDate = as.Date(SaleDate, format = "%Y-%m-%d"),
+         SaleYear = format(SaleDate, "%Y"),
+         # Extract and format ShortPostcode
+         ShortPostcode = sub("(.{3,4})\\s*(.).*", "\\1 \\2", Postcode)) %>%
+  # Select only required columns
+  select(Price, SaleYear, Postcode, ShortPostcode, `Town/City`, County)
 
-# Read the final filtered dataset
-filtered_data <- read.csv("D:/Sem4/Data Science/Data-Science-Assignment/Cleaned Data/House Pricing/finalHousing_file.csv")
+# Convert the cleaned data frame to a tibble for better display and manipulation
+house_selling_clean = as_tibble(house_selling_clean)
 
-# Create a box plot of housing prices by town
-ggplot(filtered_data, aes(x = Town, y = Price, fill = Town)) +
+# View the cleaned data
+View(house_selling_clean)
+
+# Write the cleaned data to a CSV file
+write.csv(house_selling_clean, "D:/Sem4/Data Science/Data-Science-Assignment/Cleaned Data/House Pricing/house_selling_clean.csv", row.names = FALSE)
+
+
+
+#data of 2022 for data analysis
+house_clean_2022 = housing_2022 %>%
+  # Subset to keep only the desired columns
+  select(ID, Postcode, Price, SaleDate, `Town/City`, County) %>%
+  # Remove rows with any missing values
+  na.omit() %>% 
+  # Remove duplicate rows
+  distinct() %>%
+  # Filter the data for specific counties
+  filter(County == 'CITY OF BRISTOL' | County == 'CORNWALL') %>%
+  # Convert SaleDate to Date format and extract the year
+  mutate(SaleDate = as.Date(SaleDate, format = "%Y-%m-%d"),
+         SaleYear = format(SaleDate, "%Y"),
+         # Extract and format ShortPostcode
+         ShortPostcode = sub("(.{3,4})\\s*(.).*", "\\1 \\2", Postcode)) %>%
+  # Select only required columns
+  select(Price, SaleYear, Postcode, ShortPostcode, `Town/City`, County)
+
+# Convert the cleaned data frame to a tibble for better display and manipulation
+house_clean_2022 = as_tibble(house_clean_2022)
+
+# View the cleaned data
+View(house_clean_2022)
+
+
+
+# Filter data for the City of Bristol
+bristol_data_2022 <- house_clean_2022 %>%
+  filter(County == "CITY OF BRISTOL")
+view(bristol_data_2022)
+
+# Create a boxplot for the average house prices in 2022 for different towns in Bristol
+boxplot_bristol_towns_2022 <- ggplot(bristol_data_2022, aes(x = `Town/City`, y = Price, fill = `Town/City`)) +
   geom_boxplot() +
-  scale_y_continuous(labels = scales::comma) +  # Adds commas for better readability
-  labs(title = "Housing Prices by Town: Bristol vs Cornwall",
-       x = "Town",
-       y = "Price") +
+  scale_y_continuous(labels = scales::dollar) +  # Format y-axis as currency
+  labs(
+    title = "Average House Price in 2022 (Boxplot) – Bristol's Towns",
+    x = "Town/City",
+    y = "House Price"
+  ) +
   theme_minimal() +
-  theme(axis.text.x = element_text(angle = 90, hjust = 1))  # Rotate x-axis labels for readability
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))  # Rotate x-axis labels for better readability
 
+# Display the boxplot for Bristol's towns
+print(boxplot_bristol_towns_2022)
+
+
+
+
+# Filter data for Cornwall
+cornwall_data_2022 <- house_clean_2022 %>%
+  filter(County == "CORNWALL")
+
+# Create a boxplot for the average house prices in 2022 for different towns in Cornwall
+boxplot_cornwall_towns_2022 <- ggplot(cornwall_data_2022, aes(x = `Town/City`, y = Price, fill = `Town/City`)) +
+  geom_boxplot() +
+  scale_y_continuous(labels = scales::dollar) +  # Format y-axis as currency
+  labs(
+    title = "Average House Price in 2022 (Boxplot) – Cornwall's Towns",
+    x = "Town/City",
+    y = "House Price"
+  ) +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))  # Rotate x-axis labels for better readability
+
+# Display the boxplot for Cornwall's towns
+print(boxplot_cornwall_towns_2022)
+
+
+
+# Filter data for the City of Bristol
+bristol_data_2022 <- house_clean_2022 %>%
+  filter(County == "CITY OF BRISTOL")
+
+# Calculate average price by Town/City for Bristol
+average_prices_bristol <- bristol_data_2022 %>%
+  group_by(`Town/City`) %>%
+  summarise(Avg_Price = mean(Price, na.rm = TRUE))
+
+# Create a bar chart for average house prices in Bristol
+bar_chart_bristol_towns_2022 <- ggplot(average_prices_bristol, aes(x = `Town/City`, y = Avg_Price, fill = `Town/City`)) +
+  geom_bar(stat = "identity") +
+  scale_y_continuous(labels = scales::dollar) +  # Format y-axis as currency
+  labs(
+    title = "Average House Price in 2022 – Bristol's Towns",
+    x = "Town/City",
+    y = "Average House Price"
+  ) +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))  # Rotate x-axis labels for better readability
+
+# Display the bar chart for Bristol's towns
+print(bar_chart_bristol_towns_2022)
+
+
+# Filter data for Cornwall
+cornwall_data_2022 <- house_clean_2022 %>%
+  filter(County == "CORNWALL")
+
+# Calculate average price by Town/City for Cornwall
+average_prices_cornwall <- cornwall_data_2022 %>%
+  group_by(`Town/City`) %>%
+  summarise(Avg_Price = mean(Price, na.rm = TRUE))
+
+# Create a bar chart for average house prices in Cornwall
+bar_chart_cornwall_towns_2022 <- ggplot(average_prices_cornwall, aes(x = `Town/City`, y = Avg_Price, fill = `Town/City`)) +
+  geom_bar(stat = "identity") +
+  scale_y_continuous(labels = scales::dollar) +  # Format y-axis as currency
+  labs(
+    title = "Average House Price in 2022 – Cornwall's Towns",
+    x = "Town/City",
+    y = "Average House Price"
+  ) +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))  # Rotate x-axis labels for better readability
+
+# Display the bar chart for Cornwall's towns
+print(bar_chart_cornwall_towns_2022)
+
+
+# Calculate average house price by year and county
+average_price_by_year <- house_selling_clean %>%
+  group_by(SaleYear, County) %>%
+  summarise(Avg_Price = mean(Price, na.rm = TRUE)) %>%
+  ungroup()
+
+# Create the line chart
+line_chart_avg_price <- ggplot(average_price_by_year, aes(x = SaleYear, y = Avg_Price, color = County, group = County)) +
+  geom_line(size = 1) +
+  geom_point(size = 2) +
+  scale_y_continuous(labels = scales::dollar) +  # Format y-axis as currency
+  labs(
+    title = "Average House Price from 2020 to 2023",
+    x = "Year",
+    y = "Average House Price"
+  ) +
+  theme_minimal() +
+  theme(
+    legend.title = element_blank(),
+    axis.text.x = element_text(angle = 45, hjust = 1)
+  )
+
+# Display the line chart
+print(line_chart_avg_price)

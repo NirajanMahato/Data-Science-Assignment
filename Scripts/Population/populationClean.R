@@ -1,31 +1,40 @@
+# Load necessary libraries
 library(tidyverse)
+library(dplyr)
 
-pop_2011=read_csv("D:/Sem4/Data Science/Obtained Data/Population2011_1656567141570.csv")
+# Read the 2011 population data from CSV
+pop_2011 = read_csv("D:/Sem4/Data Science/Obtained Data/Population2011_1656567141570.csv", show_col_types = FALSE)
 
-pop_2020=pop_2011
-pop_2020$Population=as.integer(pop_2020$Population*1.00561255390388033)
+# View the original 2011 population data
+View(pop_2011)
 
+# Estimate the 2023 population by applying a growth factor to the 2011 population
+pop_2023 = pop_2011 %>%
+  mutate(Population = as.integer(Population * 1.00561255390388033))
 
-pop_2021=pop_2020
-pop_2021$Population=as.integer(pop_2021$Population*1.00561255390388033)
-
-pop_2022=pop_2021
-pop_2022$Population=as.integer(pop_2022$Population*1.00561255390388033)
-
-pop_2023=pop_2022
-pop_2023$Population=as.integer(pop_2023$Population*1.00561255390388033)
-
-sum(pop_2011$Population)
-sum(pop_2020$Population)
-sum(pop_2021$Population)
-sum(pop_2022$Population)
-sum(pop_2023$Population)
+# View the estimated 2023 population data
+View(pop_2023)
 
 
-write_csv(pop_2020,"D:/Sem4/Data Science/Data-Science-Assignment/Cleaned Data/Population/pop2020.csv",append = FALSE)
-write_csv(pop_2021,"D:/Sem4/Data Science/Data-Science-Assignment/Cleaned Data/Population/pop2021.csv",append = FALSE)
-write_csv(pop_2022,"D:/Sem4/Data Science/Data-Science-Assignment/Cleaned Data/Population/pop2022.csv",append = FALSE)
-write_csv(pop_2023,"D:/Sem4/Data Science/Data-Science-Assignment/Cleaned Data/Population/pop2023.csv",append = FALSE)
+# Assuming there's a dataset `PostcodeToLSOA` with 'ShortPostcode' and 'LSOA Code' columns
+PostcodeToLSOA = read_csv("D:/Sem4/Data Science/Data-Science-Assignment/Cleaned Data/LSOA/Clean_Postcode_to_LSOA.csv")
+View(PostcodeToLSOA)
+
+population_with_lsoa <- pop_2023 %>%
+  # Assume the population dataset also has a column named 'Postcode' to join with
+  left_join(PostcodeToLSOA, by = c("Postcode" = "ShortPostcode")) %>%
+  select(`LSOA Code`, Postcode, Population) %>% 
+  drop_na() %>% 
+  distinct()# Remove rows with NA values
+
+view(population_with_lsoa)
+
+colnames(population_with_lsoa) <- c("ID", "Short Postcode", "Population")
+
+# View the merged dataset with LSOA codes
+View(population_with_lsoa)
+
+# Save Population2023 data to a new CSV file
+write.csv(population_with_lsoa, "D:/Sem4/Data Science/Data-Science-Assignment/Cleaned Data/Population/Cleaned_Population_Data.csv", row.names = FALSE)
 
 
-View(pop_2020)
